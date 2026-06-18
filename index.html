@@ -580,7 +580,12 @@
         <h2>We are preparing something beautiful</h2>
         <p class="lead" style="margin:0 auto">Leave your email and we will send a single, gentle note the day indiaqazi opens its doors.</p>
 
-        <form class="notify-form" id="notifyForm" novalidate>
+        <form class="notify-form" id="notifyForm" action="https://api.web3forms.com/submit" method="POST" novalidate>
+          <input type="hidden" name="access_key" value="fadfc959-c6c3-4feb-9e27-2ca210bb595b" />
+          <input type="hidden" name="subject" value="New indiaqazi launch signup" />
+          <input type="hidden" name="from_name" value="indiaqazi.com" />
+          <!-- honeypot: bots fill this, humans never see it -->
+          <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true" />
           <label for="email" class="visually-hidden" style="position:absolute;left:-9999px">Email address</label>
           <input type="email" id="email" name="email" placeholder="your@email.com" autocomplete="email" required />
           <button type="submit" class="btn btn-gold">Keep me posted</button>
@@ -643,18 +648,42 @@
     }
   });
 
-  // Notify form (non-functional placeholder)
+  // Notify form — submits to Web3Forms in the background, keeps the reveal animation
   var form = document.getElementById("notifyForm");
   if (form){
     form.addEventListener("submit", function(e){
       e.preventDefault();
       var email = document.getElementById("email");
+      var btn   = form.querySelector("button[type=submit]");
       if (!email.value || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)){
         email.focus(); email.style.borderColor = "#b3502f"; return;
       }
-      body.classList.add("subscribed");
-      var ok = document.getElementById("notifyOk");
-      if (ok){ ok.setAttribute("tabindex","-1"); ok.focus(); }
+      email.style.borderColor = "";
+      if (btn){ btn.disabled = true; btn.textContent = "Sending…"; }
+
+      fetch(form.action, {
+        method: "POST",
+        headers: { "Accept": "application/json" },
+        body: new FormData(form)
+      })
+      .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+      .then(function(r){
+        if (r.ok && r.data && r.data.success){
+          body.classList.add("subscribed");
+          var okEl = document.getElementById("notifyOk");
+          if (okEl){ okEl.setAttribute("tabindex","-1"); okEl.focus(); }
+        } else {
+          throw new Error((r.data && r.data.message) || "Submission failed");
+        }
+      })
+      .catch(function(){
+        if (btn){ btn.disabled = false; btn.textContent = "Keep me posted"; }
+        var note = form.parentNode.querySelector(".note");
+        if (note){
+          note.innerHTML = 'Something went wrong — please email us directly at ' +
+            '<a href="mailto:hello@indiaqazi.com" style="color:var(--gold-deep)">hello@indiaqazi.com</a>';
+        }
+      });
     });
   }
 })();
